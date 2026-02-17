@@ -1,7 +1,7 @@
 // noinspection ExceptionCaughtLocallyJS,JSUnusedGlobalSymbols
 
 const axios = require('axios');
-const {PermissionsBitField} = require('discord.js');
+const { PermissionsBitField } = require('discord.js');
 
 class VibeSync {
   /**
@@ -15,7 +15,7 @@ class VibeSync {
     this.Client = Client;
     this.api = axios.create({
       baseURL: options.baseURL || 'https://discord.com/api/v10',
-      headers: {Authorization: `Bot ${Client.token}`},
+      headers: { Authorization: `Bot ${Client.token}` },
       timeout: options.timeout || 7000,
     });
   }
@@ -26,11 +26,20 @@ class VibeSync {
    * @param {String} channelId
    */
   async _checkPermissions(channelId) {
-    let channel = this.Client.channels.cache.get(channelId) || await this.Client.channels.fetch(channelId).catch(() => null);
+    let channel =
+      this.Client.channels.cache.get(channelId) ||
+      await this.Client.channels.fetch(channelId).catch(() => null);
+
     if (!channel) throw new Error(`Channel ${channelId} not found or could not be fetched.`);
     if (channel.type !== 2) throw new Error(`Channel ${channelId} is not a voice channel.`);
-    const permissions = channel.permissionsFor(channel.guild.members.me);
-    if (!permissions || !permissions.has(PermissionsBitField.Flags.ManageChannels)) throw new Error('Missing MANAGE_CHANNELS permission.');
+
+    const me = await channel.guild.members.fetchMe().catch(() => null);
+    if (!me) throw new Error('Failed to fetch bot member.');
+
+    const permissions = channel.permissionsFor(me);
+    if (!permissions || !permissions.has(PermissionsBitField.Flags.ManageChannels)) {
+      throw new Error('Missing MANAGE_CHANNELS permission.');
+    }
   }
 
   /**
@@ -42,12 +51,18 @@ class VibeSync {
   async setVoiceStatus(channelId, status = '') {
     await this._checkPermissions(channelId);
     try {
-      const response = await this.api.put(`/channels/${channelId}/voice-status`, {status});
+      const response = await this.api.put(`/channels/${channelId}/voice-status`, { status });
       if (![200, 204].includes(response.status)) throw new Error(`Unexpected status code: ${response.status}`);
-      return {success: true};
+      return { success: true };
     } catch (error) {
       console.error('API Fehler:', error);
-      throw new Error(error.response?.data?.message ? `API Error: ${error.response.data.message}` : error.request ? 'No response from API.' : `Request Error: ${error.message}`);
+      throw new Error(
+        error.response?.data?.message
+          ? `API Error: ${error.response.data.message}`
+          : error.request
+            ? 'No response from API.'
+            : `Request Error: ${error.message}`
+      );
     }
   }
 
@@ -61,4 +76,4 @@ class VibeSync {
   }
 }
 
-module.exports = {VibeSync};
+module.exports = { VibeSync };
