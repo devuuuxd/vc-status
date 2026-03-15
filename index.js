@@ -1,23 +1,14 @@
 // noinspection ExceptionCaughtLocallyJS,JSUnusedGlobalSymbols
 
-const axios = require('axios');
 const {PermissionsBitField} = require('discord.js');
 
 class VibeSync {
   /**
    * @param {Client} Client
-   * @param {Object} [options]
-   * @param {string} [options.baseURL]
-   * @param {number} [options.timeout]
    */
-  constructor(Client, options = {}) {
+  constructor(Client) {
     if (!Client?.token) throw new Error('Bot-Token is missing. Please provide a valid Discord bot client with a token.');
     this.Client = Client;
-    this.api = axios.create({
-      baseURL: options.baseURL || 'https://discord.com/api/v10',
-      headers: {Authorization: `Bot ${Client.token}`},
-      timeout: options.timeout || 7000,
-    });
   }
 
   /**
@@ -42,12 +33,15 @@ class VibeSync {
   async setVoiceStatus(channelId, status = '') {
     await this._checkPermissions(channelId);
     try {
-      const response = await this.api.put(`/channels/${channelId}/voice-status`, {status});
-      if (![200, 204].includes(response.status)) throw new Error(`Unexpected status code: ${response.status}`);
+      const response = await this.Client.rest.put(`/channels/${channelId}/voice-status`, {body: {status}});
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`API Error: ${errorData.message || 'Unexpected error'}`);
+      }
       return {success: true};
     } catch (error) {
       console.error('API Fehler:', error);
-      throw new Error(error.response?.data?.message ? `API Error: ${error.response.data.message}` : error.request ? 'No response from API.' : `Request Error: ${error.message}`);
+      throw new Error(error?.message || 'Unexpected error while setting voice status');
     }
   }
 
